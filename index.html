@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algorithm Visualizer — Jan. 11</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+
+  :root {
+    --ink: #1a1208;
+    --paper: #f5f0e8;
+    --paper2: #ede7d4;
+    --rule: #c8bfa8;
+    --accent: #8b3a1a;
+    --highlight: #e8c97a;
+    --highlight2: #a8d4b0;
+    --faint: #b0a48a;
+    --shadow: rgba(80,60,20,0.13);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #d6cdb8;
+    font-family: 'Courier Prime', monospace;
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .notebook {
+    max-width: 780px;
+    margin: 0 auto;
+    background: var(--paper);
+    border-radius: 2px;
+    box-shadow: 4px 6px 32px var(--shadow), 0 1px 0 #fff inset;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Red margin line */
+  .notebook::before {
+    content: '';
+    position: absolute;
+    left: 72px;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: rgba(200,80,60,0.35);
+    z-index: 1;
+  }
+
+  /* Ruled lines */
+  .ruled-bg {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 31px,
+      var(--rule) 31px,
+      var(--rule) 32px
+    );
+    background-position: 0 56px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .header {
+    position: relative;
+    z-index: 2;
+    padding: 2rem 2.5rem 1rem 5.5rem;
+    border-bottom: 2px solid var(--rule);
+  }
+
+  .date-badge {
+    position: absolute;
+    left: 10px;
+    top: 1.6rem;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.78rem;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.3;
+    background: var(--paper);
+  }
+
+  h1 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 1.35rem;
+    font-weight: 400;
+    font-style: italic;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    margin-bottom: 0.3rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    color: var(--faint);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 5.5rem 0 5.5rem;
+    position: relative;
+    z-index: 2;
+    border-bottom: 1.5px solid var(--rule);
+    background: var(--paper2);
+  }
+
+  .tab {
+    padding: 0.65rem 1.4rem;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.82rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--faint);
+    border-bottom: 2.5px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -1.5px;
+    letter-spacing: 0.02em;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 700;
+  }
+
+  .panel {
+    display: none;
+    padding: 2rem 2.5rem 2.5rem 5.5rem;
+    position: relative;
+    z-index: 2;
+  }
+  .panel.active { display: block; }
+
+  /* Section headers */
+  .section-title {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 1rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    margin-bottom: 0.9rem;
+    margin-top: 1.4rem;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* Pseudocode block */
+  .pseudo {
+    background: rgba(255,255,255,0.55);
+    border-left: 3px solid var(--accent);
+    padding: 0.9rem 1.2rem;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.88rem;
+    line-height: 2;
+    border-radius: 0 4px 4px 0;
+    margin: 0.8rem 0;
+    white-space: pre;
+  }
+  .pseudo .kw { color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+  .pseudo .hl { background: var(--highlight); border-radius: 2px; padding: 0 2px; }
+
+  /* Array display */
+  .array-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0.8rem 0;
+  }
+
+  .cell {
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: 'Courier Prime', monospace;
+    background: var(--paper);
+    position: relative;
+    transition: background 0.3s, transform 0.3s, border-color 0.3s;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .cell.current { background: var(--highlight); border-color: var(--accent); transform: translateY(-4px); }
+  .cell.max-found { background: #ffd6b0; border-color: #c06020; }
+  .cell.sorted { background: var(--highlight2); border-color: #4a8a5a; }
+  .cell.comparing { background: #d0e8ff; border-color: #3060aa; transform: translateY(-4px); }
+  .cell.swapping { background: #ffd0e8; border-color: #aa3060; }
+
+  .cell-idx {
+    position: absolute;
+    bottom: -20px;
+    font-size: 0.65rem;
+    color: var(--faint);
+    font-weight: 400;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 1.5rem 0 0.8rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.82rem;
+    padding: 0.45rem 1.1rem;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.03em;
+  }
+  .btn:hover { background: var(--ink); color: var(--paper); }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { background: #6b2a0e; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:disabled:hover { background: var(--paper); color: var(--ink); }
+
+  .speed-label {
+    font-size: 0.78rem;
+    color: var(--faint);
+    margin-left: 0.3rem;
+  }
+
+  input[type=range] {
+    width: 90px;
+    accent-color: var(--accent);
+  }
+
+  /* Status line */
+  .status {
+    font-size: 0.82rem;
+    color: var(--accent);
+    font-style: italic;
+    min-height: 1.4em;
+    margin: 0.6rem 0;
+    font-family: 'Libre Baskerville', serif;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1.8rem 0 0.5rem;
+    font-size: 0.75rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-box {
+    width: 14px; height: 14px;
+    border: 1.5px solid #888;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Array input */
+  .array-input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    flex-wrap: wrap;
+  }
+  .array-input-row input[type=text] {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.88rem;
+    padding: 0.4rem 0.7rem;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    border-radius: 2px;
+    width: 220px;
+    outline: none;
+  }
+  .array-input-row input:focus { border-color: var(--accent); }
+
+  .note-text {
+    font-size: 0.83rem;
+    line-height: 1.9;
+    color: var(--ink);
+  }
+  .note-text li { margin-left: 1.2rem; }
+
+  .complexity-badge {
+    display: inline-block;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.85rem;
+    background: var(--highlight);
+    border: 1.5px solid #b89820;
+    border-radius: 3px;
+    padding: 0.15rem 0.6rem;
+    margin: 0 0.2rem;
+  }
+
+  .array-wrapper {
+    padding-bottom: 28px;
+    margin: 1rem 0;
+  }
+
+  .step-counter {
+    font-size: 0.78rem;
+    color: var(--faint);
+    font-family: 'Courier Prime', monospace;
+  }
+
+  hr.rule { border: none; border-top: 1px solid var(--rule); margin: 1.2rem 0; }
+</style>
+</head>
+<body>
+<div class="notebook">
+  <div class="ruled-bg"></div>
+
+  <div class="header">
+    <div class="date-badge">Jan.<br>11</div>
+    <h1>Algorithm Visualizer</h1>
+    <div class="subtitle">Introduction to Algorithms &nbsp;·&nbsp; Chapter 1</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('max')">Max-Element</button>
+    <button class="tab" onclick="switchTab('sort')">Insertion Sort</button>
+    <button class="tab" onclick="switchTab('notes')">Lecture Notes</button>
+  </div>
+
+  <!-- MAX ELEMENT PANEL -->
+  <div class="panel active" id="panel-max">
+    <div class="section-title">Max-Element (A, n)</div>
+    <div class="pseudo"><span class="kw">Max-Element</span>(A, n)
+  max ← A[1]
+  <span class="kw">for</span> i ← 2 <span class="kw">to</span> n
+    <span class="kw">do if</span> max &lt; A[i]
+         <span class="kw">then</span> max ← A[i]
+  <span class="kw">return</span> max</div>
+
+    <p class="note-text">Running time: <span class="complexity-badge">Θ(n)</span></p>
+
+    <hr class="rule">
+
+    <div class="array-input-row">
+      <input type="text" id="max-input" value="3, 7, 1, 9, 4, 6, 2" placeholder="e.g. 3, 7, 1, 9">
+      <button class="btn" onclick="resetMax()">Set Array</button>
+      <button class="btn" onclick="randomizeMax()">Random</button>
+    </div>
+
+    <div class="array-wrapper">
+      <div class="array-row" id="max-array"></div>
+    </div>
+
+    <div class="status" id="max-status">Ready. Press Step or Run.</div>
+
+    <div class="controls">
+      <button class="btn primary" id="max-step-btn" onclick="stepMax()">Step →</button>
+      <button class="btn" id="max-run-btn" onclick="runMax()">Run</button>
+      <button class="btn" onclick="resetMax()">Reset</button>
+      <span class="speed-label">Speed:</span>
+      <input type="range" id="max-speed" min="1" max="10" value="5">
+    </div>
+
+    <div class="step-counter" id="max-step-counter"></div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box" style="background:#e8c97a;border-color:#b89820"></div> Current (i)</div>
+      <div class="legend-item"><div class="legend-box" style="background:#ffd6b0;border-color:#c06020"></div> Current max</div>
+    </div>
+  </div>
+
+  <!-- INSERTION SORT PANEL -->
+  <div class="panel" id="panel-sort">
+    <div class="section-title">Insertion Sort</div>
+    <p class="note-text" style="margin-bottom:0.6rem">Sort A[1..2], then A[1..3], then A[1..4], and so on.</p>
+    <div class="pseudo"><span class="kw">Insertion-Sort</span>(A, n)
+  <span class="kw">for</span> j ← 2 <span class="kw">to</span> n
+    key ← A[j]
+    i ← j − 1
+    <span class="kw">while</span> i &gt; 0 <span class="kw">and</span> A[i] &gt; key
+      <span class="kw">do</span> A[i+1] ← A[i]
+         i ← i − 1
+    A[i+1] ← key
+  <span class="kw">return</span> A</div>
+
+    <p class="note-text">Running time: <span class="complexity-badge">Θ(n²)</span> worst case, <span class="complexity-badge">Θ(n)</span> best case</p>
+
+    <hr class="rule">
+
+    <div class="array-input-row">
+      <input type="text" id="sort-input" value="5, 2, 8, 1, 9, 3" placeholder="e.g. 5, 2, 8, 1, 9">
+      <button class="btn" onclick="resetSort()">Set Array</button>
+      <button class="btn" onclick="randomizeSort()">Random</button>
+    </div>
+
+    <div class="array-wrapper">
+      <div class="array-row" id="sort-array"></div>
+    </div>
+
+    <div class="status" id="sort-status">Ready. Press Step or Run.</div>
+
+    <div class="controls">
+      <button class="btn primary" id="sort-step-btn" onclick="stepSort()">Step →</button>
+      <button class="btn" id="sort-run-btn" onclick="runSort()">Run</button>
+      <button class="btn" onclick="resetSort()">Reset</button>
+      <span class="speed-label">Speed:</span>
+      <input type="range" id="sort-speed" min="1" max="10" value="5">
+    </div>
+
+    <div class="step-counter" id="sort-step-counter"></div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box" style="background:#e8c97a;border-color:#b89820"></div> Key element</div>
+      <div class="legend-item"><div class="legend-box" style="background:#d0e8ff;border-color:#3060aa"></div> Comparing</div>
+      <div class="legend-item"><div class="legend-box" style="background:#ffd0e8;border-color:#aa3060"></div> Shifting</div>
+      <div class="legend-item"><div class="legend-box" style="background:#a8d4b0;border-color:#4a8a5a"></div> Sorted</div>
+    </div>
+  </div>
+
+  <!-- NOTES PANEL -->
+  <div class="panel" id="panel-notes">
+    <div class="section-title">Announcements</div>
+    <ul class="note-text" style="list-style:disc;padding-left:1.2rem;line-height:2.1">
+      <li>You should be on the mailing list</li>
+      <li>All handouts are on my office door</li>
+      <li>Textbook is available at Amazon.com, $70 + shipping</li>
+    </ul>
+
+    <div class="section-title">Course Outline</div>
+    <ul class="note-text" style="list-style:disc;padding-left:1.2rem;line-height:2.1">
+      <li>Math foundations of algorithm analysis</li>
+      <li>Basic algorithms — sorting, data structures, graphs</li>
+      <li>General techniques — greedy algorithms, dynamic programming</li>
+      <li>Inherent difficulty of problems (NP-completeness)</li>
+    </ul>
+
+    <div class="section-title">Algorithm</div>
+    <ul class="note-text" style="list-style:disc;padding-left:1.2rem;line-height:2.1">
+      <li>Principle underlying a program</li>
+      <li>Independent of specific languages and machines</li>
+      <li>Described in pseudocode, English, or pictures</li>
+    </ul>
+
+    <div class="section-title">Sorting Problem</div>
+    <p class="note-text">Given an array A[1..n], design an algorithm for re-arranging its elements in ascending order:</p>
+    <div class="pseudo" style="margin-top:0.5rem">A[1] ≤ A[2] ≤ ... ≤ A[n]</div>
+    <p class="note-text" style="margin-top:0.5rem">The problem is very important! Most software systems use sorting.</p>
+  </div>
+
+</div><!-- .notebook -->
+
+<script>
+// ─── Tab switching ───────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+// ─── Utility ─────────────────────────────────────────────────────
+function parseInput(str) {
+  return str.split(/[\s,]+/).map(Number).filter(n => !isNaN(n) && n !== '');
+}
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randArray(len) {
+  return Array.from({length: len}, () => rand(1, 99));
+}
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── MAX ELEMENT ─────────────────────────────────────────────────
+let maxArr = [], maxI = 1, maxMaxIdx = 0, maxDone = false, maxRunning = false, maxSteps = 0;
+
+function renderMax(highlightI = -1, maxIdx = -1) {
+  const row = document.getElementById('max-array');
+  row.innerHTML = '';
+  maxArr.forEach((val, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if (idx === highlightI) cell.classList.add('current');
+    if (idx === maxIdx && idx !== highlightI) cell.classList.add('max-found');
+    if (maxDone && idx === maxIdx) cell.classList.add('max-found');
+    cell.textContent = val;
+    const sub = document.createElement('span');
+    sub.className = 'cell-idx';
+    sub.textContent = idx + 1;
+    cell.appendChild(sub);
+    row.appendChild(cell);
+  });
+}
+
+function resetMax() {
+  const raw = document.getElementById('max-input').value;
+  maxArr = parseInput(raw);
+  if (maxArr.length < 2) maxArr = [3,7,1,9,4,6,2];
+  maxI = 1; maxMaxIdx = 0; maxDone = false; maxRunning = false; maxSteps = 0;
+  document.getElementById('max-status').textContent = 'Ready. max = A[1] = ' + maxArr[0];
+  document.getElementById('max-step-counter').textContent = '';
+  document.getElementById('max-step-btn').disabled = false;
+  document.getElementById('max-run-btn').disabled = false;
+  renderMax(-1, 0);
+}
+
+function randomizeMax() {
+  const len = rand(5, 10);
+  document.getElementById('max-input').value = randArray(len).join(', ');
+  resetMax();
+}
+
+function stepMax() {
+  if (maxDone) return;
+  if (maxI >= maxArr.length) {
+    maxDone = true;
+    document.getElementById('max-status').textContent =
+      `✓ Done! max = ${maxArr[maxMaxIdx]} (at index ${maxMaxIdx + 1})`;
+    document.getElementById('max-step-btn').disabled = true;
+    renderMax(-1, maxMaxIdx);
+    document.getElementById('max-step-counter').textContent = `${maxSteps} comparisons made`;
+    return;
+  }
+  const i = maxI;
+  if (maxArr[i] > maxArr[maxMaxIdx]) {
+    document.getElementById('max-status').textContent =
+      `i=${i+1}: A[${i+1}]=${maxArr[i]} > max=${maxArr[maxMaxIdx]} → update max`;
+    maxMaxIdx = i;
+  } else {
+    document.getElementById('max-status').textContent =
+      `i=${i+1}: A[${i+1}]=${maxArr[i]} ≤ max=${maxArr[maxMaxIdx]} → no change`;
+  }
+  maxSteps++;
+  renderMax(i, maxMaxIdx);
+  maxI++;
+  document.getElementById('max-step-counter').textContent = `Step ${maxSteps} of ${maxArr.length - 1}`;
+}
+
+async function runMax() {
+  if (maxRunning || maxDone) return;
+  maxRunning = true;
+  document.getElementById('max-step-btn').disabled = true;
+  document.getElementById('max-run-btn').disabled = true;
+  while (maxI < maxArr.length && maxRunning) {
+    stepMax();
+    const spd = parseInt(document.getElementById('max-speed').value);
+    await delay(1100 - spd * 100);
+  }
+  if (!maxDone) stepMax(); // finalize
+  maxRunning = false;
+}
+
+// ─── INSERTION SORT ──────────────────────────────────────────────
+let sortArr = [], sortSteps = [], sortStep = 0, sortDone = false, sortRunning = false;
+
+function buildSortSteps(arr) {
+  const A = [...arr];
+  const steps = [];
+  steps.push({ arr: [...A], type: 'init', msg: 'Initial array. Starting sort.' });
+  for (let j = 1; j < A.length; j++) {
+    const key = A[j];
+    steps.push({ arr: [...A], type: 'pick', j, key, msg: `j=${j+1}: key = A[${j+1}] = ${key}` });
+    let i = j - 1;
+    while (i >= 0 && A[i] > key) {
+      steps.push({ arr: [...A], type: 'compare', j, i, key, msg: `A[${i+1}]=${A[i]} > key=${key} → shift right` });
+      A[i + 1] = A[i];
+      steps.push({ arr: [...A], type: 'shift', j, i, key, msg: `Shifted A[${i+1}] → A[${i+2}]` });
+      i--;
+    }
+    if (i >= 0) {
+      steps.push({ arr: [...A], type: 'compare-stop', j, i, key, msg: `A[${i+1}]=${A[i]} ≤ key=${key} → stop` });
+    }
+    A[i + 1] = key;
+    steps.push({ arr: [...A], type: 'insert', j, insertAt: i+1, key, msg: `Insert key=${key} at position ${i+2}` });
+    // Mark sorted up to j
+    steps.push({ arr: [...A], type: 'sorted', upTo: j, msg: `A[1..${j+1}] is now sorted` });
+  }
+  steps.push({ arr: [...A], type: 'done', msg: '✓ Array fully sorted!' });
+  return steps;
+}
+
+function renderSort(step) {
+  if (!step) return;
+  const row = document.getElementById('sort-array');
+  row.innerHTML = '';
+  step.arr.forEach((val, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if (step.type === 'pick' && idx === step.j) cell.classList.add('current');
+    if ((step.type === 'compare' || step.type === 'compare-stop') && idx === step.i) cell.classList.add('comparing');
+    if (step.type === 'shift' && idx === step.i + 1) cell.classList.add('swapping');
+    if (step.type === 'insert' && idx === step.insertAt) cell.classList.add('current');
+    if ((step.type === 'sorted' || step.type === 'done') && idx <= (step.upTo ?? step.arr.length - 1)) cell.classList.add('sorted');
+    cell.textContent = val;
+    const sub = document.createElement('span');
+    sub.className = 'cell-idx';
+    sub.textContent = idx + 1;
+    cell.appendChild(sub);
+    row.appendChild(cell);
+  });
+}
+
+function resetSort() {
+  const raw = document.getElementById('sort-input').value;
+  sortArr = parseInput(raw);
+  if (sortArr.length < 2) sortArr = [5,2,8,1,9,3];
+  sortSteps = buildSortSteps(sortArr);
+  sortStep = 0; sortDone = false; sortRunning = false;
+  renderSort(sortSteps[0]);
+  document.getElementById('sort-status').textContent = 'Ready. Press Step or Run.';
+  document.getElementById('sort-step-counter').textContent = `0 / ${sortSteps.length - 1} steps`;
+  document.getElementById('sort-step-btn').disabled = false;
+  document.getElementById('sort-run-btn').disabled = false;
+}
+
+function randomizeSort() {
+  const len = rand(5, 9);
+  document.getElementById('sort-input').value = randArray(len).join(', ');
+  resetSort();
+}
+
+function stepSort() {
+  if (sortDone) return;
+  sortStep++;
+  if (sortStep >= sortSteps.length) { sortDone = true; return; }
+  const s = sortSteps[sortStep];
+  renderSort(s);
+  document.getElementById('sort-status').textContent = s.msg;
+  document.getElementById('sort-step-counter').textContent = `${sortStep} / ${sortSteps.length - 1} steps`;
+  if (s.type === 'done') {
+    sortDone = true;
+    document.getElementById('sort-step-btn').disabled = true;
+  }
+}
+
+async function runSort() {
+  if (sortRunning || sortDone) return;
+  sortRunning = true;
+  document.getElementById('sort-step-btn').disabled = true;
+  document.getElementById('sort-run-btn').disabled = true;
+  while (!sortDone && sortRunning) {
+    stepSort();
+    const spd = parseInt(document.getElementById('sort-speed').value);
+    await delay(1100 - spd * 100);
+  }
+  sortRunning = false;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────
+resetMax();
+resetSort();
+</script>
+</body>
+</html>
